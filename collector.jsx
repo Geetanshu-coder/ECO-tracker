@@ -811,3 +811,497 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+//page: Household
+
+
+import React, { useState, useEffect } from 'react';
+import { Household, Ward } from '@/entities/all';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Users, MapPin, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export default function HouseholdsPage() {
+  const [households, setHouseholds] = useState([]);
+  const [filteredHouseholds, setFilteredHouseholds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newHousehold, setNewHousehold] = useState({
+    qr_code: '',
+    address: '',
+    ward_number: '',
+    ward_name: '',
+    resident_name: '',
+    phone_number: ''
+  });
+
+  useEffect(() => {
+    loadHouseholds();
+  }, []);
+
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredHouseholds(households);
+    } else {
+      const filtered = households.filter(household =>
+        household.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        household.qr_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        household.ward_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        household.resident_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredHouseholds(filtered);
+    }
+  }, [searchTerm, households]);
+
+  const loadHouseholds = async () => {
+    setIsLoading(true);
+    try {
+      const data = await Household.list('-created_date');
+      setHouseholds(data);
+    } catch (error) {
+      console.error('Error loading households:', error);
+    }
+    setIsLoading(false);
+  };
+
+  const handleAddHousehold = async (e) => {
+    e.preventDefault();
+    try {
+      await Household.create({
+        ...newHousehold,
+        total_points: 0,
+        compliance_rate: 0
+      });
+      
+      setNewHousehold({
+        qr_code: '',
+        address: '',
+        ward_number: '',
+        ward_name: '',
+        resident_name: '',
+        phone_number: ''
+      });
+      setShowAddDialog(false);
+      loadHouseholds();
+    } catch (error) {
+      console.error('Error adding household:', error);
+    }
+  };
+
+  const generateQRCode = () => {
+    const timestamp = Date.now().toString().slice(-4);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return HH${timestamp}${random};
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Household Management</h1>
+            <p className="text-slate-600">Register and manage household QR codes for waste tracking</p>
+          </div>
+          
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Household
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Register New Household</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddHousehold} className="space-y-4">
+                <div>
+                  <Label htmlFor="qr_code">QR Code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="qr_code"
+                      value={newHousehold.qr_code}
+                      onChange={(e) => setNewHousehold({...newHousehold, qr_code: e.target.value})}
+                      placeholder="HH001"
+                      required
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => setNewHousehold({...newHousehold, qr_code: generateQRCode()})}
+                    >
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={newHousehold.address}
+                    onChange={(e) => setNewHousehold({...newHousehold, address: e.target.value})}
+                    placeholder="Complete address"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="ward_number">Ward Number</Label>
+                    <Input
+                      id="ward_number"
+                      value={newHousehold.ward_number}
+                      onChange={(e) => setNewHousehold({...newHousehold, ward_number: e.target.value})}
+                      placeholder="001"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ward_name">Ward Name</Label>
+                    <Input
+                      id="ward_name"
+                      value={newHousehold.ward_name}
+                      onChange={(e) => setNewHousehold({...newHousehold, ward_name: e.target.value})}
+                      placeholder="Central Ward"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="resident_name">Resident Name</Label>
+                  <Input
+                    id="resident_name"
+                    value={newHousehold.resident_name}
+                    onChange={(e) => setNewHousehold({...newHousehold, resident_name: e.target.value})}
+                    placeholder="Primary resident name"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="phone_number">Phone Number</Label>
+                  <Input
+                    id="phone_number"
+                    value={newHousehold.phone_number}
+                    onChange={(e) => setNewHousehold({...newHousehold, phone_number: e.target.value})}
+                    placeholder="Contact number"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                    Register Household
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="w-5 h-5" />
+              Search Households
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Input
+              placeholder="Search by address, QR code, ward, or resident name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-md"
+            />
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4">
+          {filteredHouseholds.map((household) => (
+            <Card key={household.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="grid md:grid-cols-4 gap-4 items-center">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <Users className="w-4 h-4 text-green-600" />
+                      </div>
+                      <span className="font-mono text-sm font-semibold">{household.qr_code}</span>
+                    </div>
+                    <p className="font-medium">{household.address}</p>
+                    {household.resident_name && (
+                      <p className="text-sm text-slate-500">{household.resident_name}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <Badge variant="outline" className="mb-2">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {household.ward_name} ({household.ward_number})
+                    </Badge>
+                    {household.phone_number && (
+                      <p className="text-sm text-slate-600">{household.phone_number}</p>
+                    )}
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{household.total_points}</div>
+                    <p className="text-sm text-slate-500">Points Earned</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${
+                      household.compliance_rate >= 80 ? 'text-green-600' : 
+                      household.compliance_rate >= 60 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {household.compliance_rate}%
+                    </div>
+                    <p className="text-sm text-slate-500">Compliance Rate</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          {filteredHouseholds.length === 0 && !isLoading && (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <p className="text-slate-500">
+                  {searchTerm ? 'No households found matching your search' : 'No households registered yet'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+//page: welcome
+
+import React, { useState } from 'react';
+import { Household } from '@/entities/all';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Recycle, User, Phone, MapPin, QrCode, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+export default function WelcomePage() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: '',
+    mobile: '',
+    address: '',
+    qr_code: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const generateQRCode = () => {
+    const timestamp = Date.now().toString().slice(-4);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return HH${timestamp}${random};
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      // Check if household with this QR code already exists
+      const existingHouseholds = await Household.filter({ qr_code: formData.qr_code });
+      
+      if (existingHouseholds.length > 0) {
+        // Household exists, redirect to resident portal
+        navigate(${createPageUrl("Resident")}?qr=${formData.qr_code});
+      } else {
+        // Create new household
+        await Household.create({
+          qr_code: formData.qr_code,
+          address: formData.address,
+          ward_number: "001", // Default ward - can be updated later
+          ward_name: "General Ward",
+          resident_name: formData.name,
+          phone_number: formData.mobile,
+          total_points: 0,
+          compliance_rate: 0
+        });
+
+        setMessage({
+          type: 'success',
+          text: 'Account created successfully! Welcome to EcoTrack.'
+        });
+
+        // Redirect to resident portal after 2 seconds
+        setTimeout(() => {
+          navigate(${createPageUrl("Resident")}?qr=${formData.qr_code});
+        }, 2000);
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: 'Something went wrong. Please try again.'
+      });
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Recycle className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to EcoTrack</h1>
+          <p className="text-slate-600">Join the smart waste management revolution</p>
+        </div>
+
+        {message && (
+          <Alert className={mb-6 ${message.type === 'success' ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}}>
+            <CheckCircle className={h-4 w-4 ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}} />
+            <AlertDescription className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+              {message.text}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="shadow-xl border-0">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-center text-slate-900">Register Your Household</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="flex items-center gap-2 text-slate-700">
+                  <User className="w-4 h-4" />
+                  Full Name
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Enter your full name"
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mobile" className="flex items-center gap-2 text-slate-700">
+                  <Phone className="w-4 h-4" />
+                  Mobile Number
+                </Label>
+                <Input
+                  id="mobile"
+                  type="tel"
+                  value={formData.mobile}
+                  onChange={(e) => handleInputChange('mobile', e.target.value)}
+                  placeholder="Enter your mobile number"
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address" className="flex items-center gap-2 text-slate-700">
+                  <MapPin className="w-4 h-4" />
+                  House Address
+                </Label>
+                <Input
+                  id="address"
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="Enter your complete address"
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="qr_code" className="flex items-center gap-2 text-slate-700">
+                  <QrCode className="w-4 h-4" />
+                  Your QR Code
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="qr_code"
+                    type="text"
+                    value={formData.qr_code}
+                    onChange={(e) => handleInputChange('qr_code', e.target.value)}
+                    placeholder="Enter or generate QR code"
+                    required
+                    className="h-11"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => handleInputChange('qr_code', generateQRCode())}
+                    className="h-11"
+                  >
+                    Generate
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  This unique code will be used by collectors to track your waste segregation
+                </p>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Setting up your account...
+                  </>
+                ) : (
+                  'Get Started'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <div className="text-center text-sm text-slate-600">
+                <p>Already have an account?</p>
+                <p className="mt-1">Use your QR code in the <span className="font-semibold text-green-600">Resident Portal</span></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 text-center text-xs text-slate-500">
+          <p>By joining EcoTrack, you're contributing to a cleaner, greener future</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+

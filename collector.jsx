@@ -1305,3 +1305,609 @@ export default function WelcomePage() {
   );
 }
 
+// components-> collector -> QRScanner
+
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Camera, Scan, X, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+export default function QRScanner({ onScan, isProcessing }) {
+  const [showCamera, setShowCamera] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [manualCode, setManualCode] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanRef = useRef(null);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' },
+        audio: false 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setIsCameraReady(true);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraReady(false);
+  };
+
+  const handleManualSubmit = (e) => {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      onScan(manualCode.trim());
+      setManualCode("");
+    }
+  };
+
+  useEffect(() => {
+    if (showCamera) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [showCamera]);
+
+  // Simulate QR code detection (in real app, would use QR library)
+  const simulateQRDetection = () => {
+    const codes = ['HH001', 'HH002', 'HH003', 'HH004', 'HH005'];
+    const randomCode = codes[Math.floor(Math.random() * codes.length)];
+    onScan(randomCode);
+    setShowCamera(false);
+  };
+
+  return (
+    <>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-700">
+            <Scan className="w-5 h-5" />
+            QR Code Scanner
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              onClick={() => setShowCamera(true)}
+              className="h-16 bg-green-600 hover:bg-green-700 text-white"
+              disabled={isProcessing}
+            >
+              <Camera className="w-5 h-5 mr-2" />
+              Scan QR Code
+            </Button>
+
+            <form onSubmit={handleManualSubmit} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Enter QR Code manually"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                disabled={isProcessing}
+              />
+              <Button 
+                type="submit" 
+                variant="outline"
+                disabled={!manualCode.trim() || isProcessing}
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showCamera} onOpenChange={setShowCamera}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              Scan Household QR Code
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {!isCameraReady && (
+                <div className="absolute inset-0 flex items-center justify-center text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                    Loading camera...
+                  </div>
+                </div>
+              )}
+              
+              {/* QR Code targeting overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-48 h-48 border-2 border-green-400 rounded-lg relative">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-400"></div>
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-400"></div>
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-400"></div>
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-green-400"></div>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-center text-sm text-slate-600">
+              Position the QR code within the frame to scan
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowCamera(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={simulateQRDetection}
+                disabled={!isCameraReady}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Simulate Scan
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+//components-> collector -> WasteStatusForm
+
+
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CheckCircle2, XCircle, AlertCircle, Recycle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export default function WasteStatusForm({ 
+  householdData, 
+  onSubmit, 
+  isProcessing, 
+  onCancel 
+}) {
+  const [status, setStatus] = useState("");
+  const [notes, setNotes] = useState("");
+  const [collectorName, setCollectorName] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      status,
+      notes,
+      collectorName
+    });
+  };
+
+  if (!householdData) return null;
+
+  return (
+    <Card className="border-l-4 border-l-green-500">
+      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+        <CardTitle className="flex items-center gap-2">
+          <Recycle className="w-5 h-5 text-green-600" />
+          Record Waste Collection
+        </CardTitle>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <p className="text-sm font-medium text-slate-700">Household</p>
+            <p className="text-slate-600">{householdData.address}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-700">Ward</p>
+            <Badge variant="outline" className="mt-1">
+              {householdData.ward_name} ({householdData.ward_number})
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <Label className="text-base font-semibold mb-4 block">
+              Waste Segregation Status
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setStatus("segregated")}
+                className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                  status === "segregated" 
+                    ? "border-green-500 bg-green-50 text-green-700" 
+                    : "border-slate-200 hover:border-green-300 hover:bg-green-50"
+                }`}
+              >
+                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                <div className="font-semibold">Properly Segregated</div>
+                <div className="text-sm opacity-75">+5 points</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatus("mixed")}
+                className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                  status === "mixed" 
+                    ? "border-red-500 bg-red-50 text-red-700" 
+                    : "border-slate-200 hover:border-red-300 hover:bg-red-50"
+                }`}
+              >
+                <XCircle className="w-8 h-8 mx-auto mb-2 text-red-500" />
+                <div className="font-semibold">Mixed/Not Segregated</div>
+                <div className="text-sm opacity-75">-2 points</div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="collectorName">Collector Name</Label>
+            <Input
+              id="collectorName"
+              value={collectorName}
+              onChange={(e) => setCollectorName(e.target.value)}
+              placeholder="Enter your name"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Additional Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any observations or issues..."
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!status || !collectorName || isProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Recording...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Record Collection
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+//Components -> analytics -> PerformanceChart
+
+import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, TrendingDown } from "lucide-react";
+
+const COLORS = ['#10B981', '#EF4444'];
+
+export default function PerformanceChart({ data, type = "bar", title }) {
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex items-center justify-center text-slate-500">
+            No data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const formatTooltip = (value, name) => {
+    if (name === 'compliance_rate') {
+      return [${value}%, 'Compliance Rate'];
+    }
+    return [value, name.replace('_', ' ')];
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {title}
+          {data[0]?.trend === 'up' && <TrendingUp className="w-4 h-4 text-green-500" />}
+          {data[0]?.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500" />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div style={{ width: '100%', height: 300 }}>
+          <ResponsiveContainer>
+            {type === "bar" ? (
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#64748b"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="#64748b"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  formatter={formatTooltip}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Bar 
+                  dataKey="compliance_rate" 
+                  fill="#10B981" 
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            ) : (
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => ${name} ${(percent * 100).toFixed(0)}%}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={cell-${index}} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+//Components -> analytics -> Statcard
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, TrendingDown } from "lucide-react";
+
+export default function StatCard({ title, value, icon: Icon, change, changeType, bgColor }) {
+  return (
+    <Card className="relative overflow-hidden">
+      <div className={absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8 ${bgColor} rounded-full opacity-10} />
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-slate-600">
+          {title}
+        </CardTitle>
+        <Icon className={h-5 w-5 ${bgColor.replace('bg-', 'text-')}} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-slate-900">{value}</div>
+        {change && (
+          <p className="text-xs text-slate-600 flex items-center gap-1 mt-1">
+            {changeType === 'up' ? (
+              <TrendingUp className="h-3 w-3 text-green-500" />
+            ) : (
+              <TrendingDown className="h-3 w-3 text-red-500" />
+            )}
+            <span className={changeType === 'up' ? 'text-green-500' : 'text-red-500'}>
+              {change}
+            </span>
+            <span>from last week</span>
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+//Layout.js
+
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Recycle, Scan, Trophy, BarChart3, Users, MapPin, UserPlus } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+
+const navigationItems = [
+  {
+    title: "Get Started",
+    url: createPageUrl("Welcome"),
+    icon: UserPlus,
+    description: "Register Your Household"
+  },
+  {
+    title: "Collector App",
+    url: createPageUrl("Collector"),
+    icon: Scan,
+    description: "QR Code Scanning"
+  },
+  {
+    title: "Resident Portal",
+    url: createPageUrl("Resident"),
+    icon: Trophy,
+    description: "View Rewards & Points"
+  },
+  {
+    title: "Municipality Dashboard",
+    url: createPageUrl("Dashboard"),
+    icon: BarChart3,
+    description: "Analytics & Insights"
+  },
+  {
+    title: "Household Management",
+    url: createPageUrl("Households"),
+    icon: Users,
+    description: "Manage Households"
+  }
+];
+
+export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-green-50">
+        <Sidebar className="border-r border-slate-200 bg-white">
+          <SidebarHeader className="border-b border-slate-100 p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Recycle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg">EcoTrack</h2>
+                <p className="text-xs text-slate-500">Smart Waste Management</p>
+              </div>
+            </div>
+          </SidebarHeader>
+          
+          <SidebarContent className="p-3">
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+                Applications
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navigationItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        asChild 
+                        className={`hover:bg-green-50 hover:text-green-700 transition-all duration-200 rounded-xl mb-1 ${
+                          location.pathname === item.url ? 'bg-green-50 text-green-700 border-l-4 border-green-500' : ''
+                        }`}
+                      >
+                        <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
+                          <item.icon className="w-5 h-5" />
+                          <div>
+                            <span className="font-semibold text-sm">{item.title}</span>
+                            <p className="text-xs text-slate-500">{item.description}</p>
+                          </div>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup className="mt-6">
+              <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+                Quick Stats
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <div className="px-4 py-3 space-y-3">
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Recycle className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">Today's Collections</p>
+                      <p className="text-xs text-slate-500">Track daily progress</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">Ward Performance</p>
+                      <p className="text-xs text-slate-500">Monitor compliance</p>
+                    </div>
+                  </div>
+                </div>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooter className="border-t border-slate-100 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                <span className="text-slate-600 font-semibold text-sm">U</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 text-sm truncate">Admin User</p>
+                <p className="text-xs text-slate-500 truncate">Waste Management System</p>
+              </div>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+
+        <main className="flex-1 flex flex-col">
+          <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 md:hidden">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
+              <h1 className="text-xl font-bold text-slate-900">EcoTrack</h1>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
